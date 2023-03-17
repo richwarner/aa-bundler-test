@@ -2,7 +2,7 @@
 
 This project runs some tests using the Account Abstraction SDK, specifically to test the impact of calldata size on submitting a User Operation to a bundler.
 
-This repo uses Stackup's bundler, but has also been tested with a local deployment of the Infinitism bundler, with the same results.
+It uses Stackup's bundler, but has also been tested with a local deployment of the Infinitism bundler, with the same results.
 
 ### Findings
 
@@ -24,13 +24,12 @@ It appears that the bundler is using the SDK's function for caculating preVerifi
 
 Before running tests, populate the .env file (see example).
 
-````shell
 Run the tests with:
 
 ```shell
 yarn hardhat test --network mumbai
 yarn hardhat test --network goerli
-````
+```
 
 ### Example Output
 
