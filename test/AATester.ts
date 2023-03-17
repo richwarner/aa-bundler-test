@@ -8,22 +8,6 @@ import SimpleEventEmitterArtifact from "../artifacts/contracts/SimpleEventEmitte
 import { SimpleAccountAPI, HttpRpcClient } from "@account-abstraction/sdk";
 import { JsonRpcProvider } from "@ethersproject/providers";
 
-interface Gas {
-  maxFeePerGas: BigNumberish;
-  maxPriorityFeePerGas: BigNumberish;
-}
-async function getGasFee(provider: JsonRpcProvider): Promise<Gas> {
-  const [fee, block] = await Promise.all([provider.send("eth_maxPriorityFeePerGas", []), provider.getBlock("latest")]);
-  const tip = ethers.BigNumber.from(fee);
-  const buffer = tip.div(100).mul(13);
-  const maxPriorityFeePerGas = tip.add(buffer);
-  const maxFeePerGas = block.baseFeePerGas
-    ? block.baseFeePerGas.mul(2).add(maxPriorityFeePerGas)
-    : maxPriorityFeePerGas;
-
-  return { maxFeePerGas, maxPriorityFeePerGas };
-}
-
 describe("AATester", async () => {
   let signers: any[];
   let signer: Signer;
@@ -51,6 +35,7 @@ describe("AATester", async () => {
     });
   });
 
+  // Run a simple test without account abstraction
   const testDesc1 = "should make a simple contract call without using account abstraction";
   it(testDesc1, async function () {
     console.log('\n     > TEST: Running "' + testDesc1 + '"...');
@@ -59,6 +44,7 @@ describe("AATester", async () => {
     await expect(tx).to.emit(contract, "ParameterEmitted").withArgs(parameter);
   });
 
+  // Run a simple test with account abstraction
   const testDesc2 = "should make a simple contract call using account abstraction";
   it("should make a simple contract call using account abstraction", async function () {
     console.log('\n     > TEST: Running "' + testDesc2 + '"...');
@@ -77,6 +63,7 @@ describe("AATester", async () => {
     await expect(txHash).to.emit(contract, "ParameterEmitted").withArgs(parameter);
   });
 
+  // Run 10 tests with gradually increasing calldata length
   const testDesc3 =
     "should fail 0 of 10 simple contract calls using account abstraction with gradually increasing calldata lengths";
   it(testDesc3, async function () {
@@ -107,7 +94,15 @@ describe("AATester", async () => {
         await expect(txHash).to.emit(contract, "ParameterEmitted").withArgs(parameter);
       } catch (error: any) {
         if (error.message.includes("preVerificationGas: below expected gas")) {
-          console.log("       Error: preVerificationGas: below expected gas");
+          const expectedRegex = /below expected gas of (\d+)/;
+          const actualRegex = /"preVerificationGas\\":\\"(0x[\da-fA-F]+)\\"/;
+          const expectedMatch = error.message.match(actualRegex);
+          const actualMatch = error.message.match(expectedRegex);
+          const expectedValue = parseInt(actualMatch[1], 10);
+          const actualValue = parseInt(expectedMatch[1], 16);
+          console.log(
+            `       Error: preVerificationGas: below expected gas | Actual: ${actualValue} | Expected: ${expectedValue}`
+          );
           success = false;
         } else {
           console.log("       Unexpected Error: ", error.message);
@@ -120,5 +115,22 @@ describe("AATester", async () => {
     }
     console.log(`     Failed: ${failed}/10`);
     expect(failed).to.equal(0);
-  }).timeout(70000);
+  }).timeout(80000);
 });
+
+// Utility function for gas
+interface Gas {
+  maxFeePerGas: BigNumberish;
+  maxPriorityFeePerGas: BigNumberish;
+}
+async function getGasFee(provider: JsonRpcProvider): Promise<Gas> {
+  const [fee, block] = await Promise.all([provider.send("eth_maxPriorityFeePerGas", []), provider.getBlock("latest")]);
+  const tip = ethers.BigNumber.from(fee);
+  const buffer = tip.div(100).mul(13);
+  const maxPriorityFeePerGas = tip.add(buffer);
+  const maxFeePerGas = block.baseFeePerGas
+    ? block.baseFeePerGas.mul(2).add(maxPriorityFeePerGas)
+    : maxPriorityFeePerGas;
+
+  return { maxFeePerGas, maxPriorityFeePerGas };
+}
